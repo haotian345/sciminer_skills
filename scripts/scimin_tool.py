@@ -186,7 +186,7 @@ def poll_result(task_id: str, api_key: str) -> dict:
     for attempt in range(MAX_RETRIES):
         try:
             response = requests.get(
-                RESULT_ENDPOINT,
+                f"{BASE_URL}{RESULT_ENDPOINT}",
                 params={"task_id": task_id},
                 headers=headers,
                 timeout=10

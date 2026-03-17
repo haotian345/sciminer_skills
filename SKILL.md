@@ -1,11 +1,65 @@
 ---
 name: scimin-api
 description: 调用 SciMiner (https://sciminer.tech) 药物设计工具 API。支持根据用户问题自动匹配工具，支持 ADMET 预测、分子描述符计算、专利检索等多种工具。用于调用 SciMiner 的各种计算工具，上传分子文件进行批量处理，查询专利信息获取化合物结构。API Key 通过环境变量 SCIMINER_API_KEY 配置。
+metadata:
+  {
+    "openclaw":
+      {
+        "requires":
+          {
+            "env": ["SCIMINER_API_KEY"],
+            "bins": ["python3"],
+          },
+      },
+  }
 ---
 
 # SciMiner API 工具
 
-安全、智能的 SciMiner API 调用封装。
+> ⚠️ **安装前必读**：本 skill 需要 SciMiner API Key 才能使用。
+
+## 前置要求
+
+### 1. 获取 API Key
+
+如果没有 API Key，请先访问 **[https://sciminer.tech/utility](https://sciminer.tech/utility)** 生成：
+
+1. 登录 SciMiner 账号
+2. 进入「工具」页面
+3. 点击「生成 API Key」或类似按钮
+4. 复制生成的 Key
+
+### 2. 配置环境变量
+
+```bash
+# 方式一：当前终端生效
+export SCIMINER_API_KEY=你的APIKey
+
+# 方式二：持久化（添加到 ~/.bashrc 或 ~/.zshrc）
+echo 'export SCIMINER_API_KEY=你的APIKey' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### 3. 在 OpenClaw 中配置
+
+在 `~/.openclaw/openclaw.json` 的 `skills.entries` 中添加：
+
+```json
+{
+  "skills": {
+    "entries": {
+      "scimin-api": {
+        "enabled": true,
+        "env": {
+          "SCIMINER_API_KEY": "你的APIKey"
+        }
+      }
+    }
+  }
+}
+```
+
+> **注意**：安装本 skill 前，请确保已完成以上步骤。未配置 API Key 将导致 skill 无法正常使用。
 
 ## 快速开始
 
