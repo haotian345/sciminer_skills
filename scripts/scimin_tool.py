@@ -47,7 +47,7 @@ POLL_INTERVAL = 2
 # 安全配置
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 ALLOWED_EXTENSIONS = {".sdf", ".mol", ".mol2", ".smi", ".csv", ".xlsx", ".txt"}
-ALLOWED_SMILES_CHARS = set("BCNOPSFIHcnops[]()=#@-+/0123456789\%ZabcdefghijklmqrstuvwxyzE\\")
+ALLOWED_SMILES_CHARS = set("BCNOPSFIHcnops[]()=#@-+/0123456789%ZabcdefghijklmqrstuvwxyzE\\")
 
 
 def sanitize_string(s: str, max_len: int = 1000) -> str:
@@ -371,26 +371,30 @@ def run_task(user_query: str, parameters: dict = None, **kwargs) -> dict:
     Returns:
         执行结果，包含匹配的工具信息
     """
+    # 安全：清理用户输入
+    safe_query = sanitize_string(user_query, 500)
+    
     # 1. 自动搜索工具
-    tool_info = find_tool(user_query)
+    tool_info = find_tool(safe_query)
     
     if not tool_info:
         # 尝试直接使用 tool_name
         if parameters:
             return execute(
-                tool_name=user_query if isinstance(user_query, str) else "unknown",
+                tool_name=safe_query if isinstance(safe_query, str) else "unknown",
                 parameters=parameters,
                 **kwargs
             )
         return {
             "status": "ERROR",
-            "result": f"无法从问题 '{user_query}' 识别出对应的工具，请明确指定工具名称",
+            "result": f"无法从问题 '{safe_query[:50]}...' 识别出对应的工具，请明确指定工具名称",
             "suggestions": list(TOOLS_REGISTRY.keys())
         }
     
-    print(f"🔍 自动匹配工具: {tool_info['name']}")
-    print(f"   描述: {tool_info.get('description')}")
-    print(f"   tool_name: {tool_info.get('default_tool_name')}")
+    # 安全日志输出
+    print(f"🔍 自动匹配工具: {sanitize_string(tool_info['name'], 100)}")
+    print(f"   描述: {sanitize_string(tool_info.get('description', ''), 200)}")
+    print(f"   tool_name: {tool_info.get('default_tool_name', 'N/A')}")
     
     # 2. 构建参数
     final_params = parameters or {}
