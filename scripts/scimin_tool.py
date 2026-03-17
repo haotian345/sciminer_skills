@@ -59,11 +59,28 @@ def sanitize_string(s: str, max_len: int = 1000) -> str:
 
 
 def validate_tool_name(tool_name: str) -> bool:
-    """验证 tool_name 是否在白名单中"""
+    """
+    验证 tool_name 是否有效
+    
+    支持两种格式：
+    - 友好名称：ADMET Predictor, Molecular Descriptors 等（TOOLS_REGISTRY 的键）
+    - 内部名称：smiles_admet_post, molecular_descriptors_post 等（实际 API 调用的 tool_name）
+    """
     if not tool_name:
         return False
-    # 检查是否在注册表中
-    return tool_name in TOOLS_REGISTRY
+    
+    # 1. 检查是否在注册表键中（友好名称）
+    if tool_name in TOOLS_REGISTRY:
+        return True
+    
+    # 2. 检查是否为某个工具的 internal tool_name
+    for tool_key, tool_info in TOOLS_REGISTRY.items():
+        interfaces = tool_info.get("interfaces", {})
+        for interface_name, interface_info in interfaces.items():
+            if interface_info.get("tool_name") == tool_name:
+                return True
+    
+    return False
 
 
 def validate_file_path(file_path: str) -> tuple[bool, str]:
