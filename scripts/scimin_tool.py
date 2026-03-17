@@ -44,6 +44,56 @@ RESULT_ENDPOINT = "/v1/internal/tools/result"
 MAX_RETRIES = 300
 POLL_INTERVAL = 2
 
+# 安全配置
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+ALLOWED_EXTENSIONS = {".sdf", ".mol", ".mol2", ".smi", ".csv", ".xlsx", ".txt"}
+ALLOWED_SMILES_CHARS = set("BCNOPSFIHcnops[]()=#@-+/0123456789\%ZabcdefghijklmqrstuvwxyzE\\")
+
+
+def sanitize_string(s: str, max_len: int = 1000) -> str:
+    """清理字符串，防止日志注入"""
+    if not isinstance(s, str):
+        return ""
+    # 移除控制字符
+    return "".join(c for c in s if ord(c) >= 32 or c in "\n\r\t")[:max_len]
+
+
+def validate_tool_name(tool_name: str) -> bool:
+    """验证 tool_name 是否在白名单中"""
+    if not tool_name:
+        return False
+    # 检查是否在注册表中
+    return tool_name in TOOLS_REGISTRY
+
+
+def validate_file_path(file_path: str) -> tuple[bool, str]:
+    """验证文件路径安全性"""
+    if not file_path:
+        return False, ""
+    
+    # 防止路径遍历
+    if ".." in file_path or file_path.startswith("/"):
+        return False, "禁止路径遍历"
+    
+    # 检查文件存在
+    if not os.path.exists(file_path):
+        return False, "文件不存在"
+    
+    # 检查扩展名
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return False, f"不支持的文件类型: {ext}"
+    
+    # 检查文件大小
+    try:
+        size = os.path.getsize(file_path)
+        if size > MAX_FILE_SIZE:
+            return False, f"文件过大: {size // (1024*1024)}MB > {MAX_FILE_SIZE // (1024*1024)}MB"
+    except OSError:
+        return False, "无法读取文件大小"
+    
+    return True, ""
+
 
 def get_api_key():
     """从环境变量获取 API Key"""
@@ -57,11 +107,26 @@ def get_api_key():
 
 def upload_file(file_path: str, api_key: str) -> str:
     """上传文件并返回 file_id"""
-    if not file_path or not os.path.exists(file_path):
+    if not file_path:
         return None
     
-    with open(file_path, "rb") as f:
-        files = {"file": (os.path.basename(file_path), f)}
+    # 安全验证
+    is_valid, error_msg = validate_file_path(file_path)
+    if not is_valid:
+        print(f"⚠️ 文件验证失败: {error_msg}")
+        return None
+    
+    # 使用 realpath 解析符号链接，防止路径遍历
+    real_path = os.path.realpath(file_path)
+    
+    # 二次检查（realpath 解析后）
+    is_valid, error_msg = validate_file_path(real_path)
+    if not is_valid:
+        print(f"⚠️ 文件验证失败: {error_msg}")
+        return None
+    
+    with open(real_path, "rb") as f:
+        files = {"file": (os.path.basename(real_path), f)}
         headers = {"X-Auth-Token": api_key}
         
         response = requests.post(
@@ -88,16 +153,19 @@ def process_parameters(parameters: dict, api_key: str) -> dict:
         return {}
     
     processed = parameters.copy()
-    file_extensions = (".sdf", ".mol", ".mol2", ".smi", ".csv", ".xlsx", ".txt")
     
     for key, value in parameters.items():
         # 检查是否是文件路径
         if isinstance(value, str) and os.path.exists(value):
-            if value.lower().endswith(file_extensions):
+            # 安全验证
+            is_valid, error_msg = validate_file_path(value)
+            if is_valid:
                 file_id = upload_file(value, api_key)
                 if file_id:
                     processed[key] = file_id
                     print(f"文件已上传: {os.path.basename(value)}, file_id: {file_id}")
+            else:
+                print(f"⚠️ 跳过不安全文件 {key}: {error_msg}")
     
     return processed
 
@@ -127,6 +195,18 @@ def invoke_tool(tool_name: str, parameters: dict = None, file_path: str = None,
     # 获取 API Key
     if not api_key:
         api_key = get_api_key()
+    
+    # 🔒 安全验证: tool_name 必须有效
+    if not validate_tool_name(tool_name):
+        return {
+            "status": "ERROR",
+            "result": f"无效的工具名称: {sanitize_string(tool_name, 100)}",
+            "allowed_tools": list(TOOLS_REGISTRY.keys())
+        }
+    
+    # 清理 provider_name（如果有）
+    if provider_name:
+        provider_name = sanitize_string(provider_name, 200)
     
     headers = {
         "X-Auth-Token": api_key,
@@ -254,9 +334,15 @@ def run_with_tool(tool_name: str, parameters: dict = None, **kwargs) -> dict:
     Returns:
         执行结果
     """
+    # 安全验证
+    if not validate_tool_name(tool_name):
+        return {
+            "status": "ERROR", 
+            "result": f"未找到工具: {sanitize_string(tool_name, 100)}",
+            "allowed_tools": list(TOOLS_REGISTRY.keys())
+        }
+    
     tool_info = get_tool_info(tool_name)
-    if not tool_info:
-        return {"status": "ERROR", "result": f"未找到工具: {tool_name}"}
     
     return execute(
         tool_name=tool_info.get("default_tool_name", tool_name),
