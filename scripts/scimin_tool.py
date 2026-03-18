@@ -28,7 +28,6 @@ SciMiner API 工具调用脚本
 import os
 import time
 import requests
-from typing import Dict, Optional, Union
 
 # 导入工具注册表 - 支持相对和绝对导入
 try:
@@ -47,7 +46,11 @@ POLL_INTERVAL = 2
 # 安全配置
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 ALLOWED_EXTENSIONS = {".sdf", ".mol", ".mol2", ".smi", ".csv", ".xlsx", ".txt"}
-ALLOWED_SMILES_CHARS = set("BCNOPSFIHcnops[]()=#@-+/0123456789%ZabcdefghijklmqrstuvwxyzE\\")
+_ALLOWED_SMILES_STR = (
+    "BCNOPSFIHcnops[]()=#@-+/0123456789%Z"
+    "abcdefghijklmqrstuvwxyzE\\"
+)
+ALLOWED_SMILES_CHARS = set(_ALLOWED_SMILES_STR)
 
 
 def sanitize_string(s: str, max_len: int = 1000) -> str:
@@ -59,56 +62,49 @@ def sanitize_string(s: str, max_len: int = 1000) -> str:
 
 
 def validate_tool_name(tool_name: str) -> bool:
-    """
-    验证 tool_name 是否有效
-    
-    支持两种格式：
-    - 友好名称：ADMET Predictor, Molecular Descriptors 等（TOOLS_REGISTRY 的键）
-    - 内部名称：smiles_admet_post, molecular_descriptors_post 等（实际 API 调用的 tool_name）
-    """
+    """验证 tool_name 是否有效，支持友好名或内部接口名。"""
     if not tool_name:
         return False
-    
-    # 1. 检查是否在注册表键中（友好名称）
-    if tool_name in TOOLS_REGISTRY:
-        return True
-    
-    # 2. 检查是否为某个工具的 internal tool_name
-    for tool_key, tool_info in TOOLS_REGISTRY.items():
-        interfaces = tool_info.get("interfaces", {})
-        for interface_name, interface_info in interfaces.items():
-            if interface_info.get("tool_name") == tool_name:
-                return True
-    
-    return False
+    try:
+        from .scimin_registry import get_tool_info as _get
+    except Exception:
+        from scimin_registry import get_tool_info as _get
+
+    return _get(tool_name) is not None
 
 
 def validate_file_path(file_path: str) -> tuple[bool, str]:
-    """验证文件路径安全性"""
+    """验证文件路径安全性：允许绝对路径，要求存在、不是目录、后缀受限且大小合规。"""
     if not file_path:
         return False, ""
-    
-    # 防止路径遍历
-    if ".." in file_path or file_path.startswith("/"):
-        return False, "禁止路径遍历"
-    
-    # 检查文件存在
-    if not os.path.exists(file_path):
+
+    # 解析真实路径（处理符号链接）
+    try:
+        real_path = os.path.realpath(file_path)
+    except Exception:
+        return False, "路径无法解析"
+
+    # 必须存在且为文件
+    if not os.path.exists(real_path):
         return False, "文件不存在"
-    
+    if not os.path.isfile(real_path):
+        return False, "不是一个常规文件"
+
     # 检查扩展名
-    ext = os.path.splitext(file_path)[1].lower()
+    ext = os.path.splitext(real_path)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         return False, f"不支持的文件类型: {ext}"
-    
+
     # 检查文件大小
     try:
-        size = os.path.getsize(file_path)
+        size = os.path.getsize(real_path)
         if size > MAX_FILE_SIZE:
-            return False, f"文件过大: {size // (1024*1024)}MB > {MAX_FILE_SIZE // (1024*1024)}MB"
+            size_mb = size // (1024 * 1024)
+            max_mb = MAX_FILE_SIZE // (1024 * 1024)
+            return False, f"文件过大: {size_mb}MB > {max_mb}MB"
     except OSError:
         return False, "无法读取文件大小"
-    
+
     return True, ""
 
 
@@ -123,42 +119,52 @@ def get_api_key():
 
 
 def upload_file(file_path: str, api_key: str) -> str:
-    """上传文件并返回 file_id"""
+    """上传文件并返回 file_id；任何网络或解析错误返回 None。"""
     if not file_path:
         return None
-    
-    # 安全验证
-    is_valid, error_msg = validate_file_path(file_path)
-    if not is_valid:
-        print(f"⚠️ 文件验证失败: {error_msg}")
-        return None
-    
-    # 使用 realpath 解析符号链接，防止路径遍历
+
+    # 先解析真实路径，再验证
     real_path = os.path.realpath(file_path)
-    
-    # 二次检查（realpath 解析后）
     is_valid, error_msg = validate_file_path(real_path)
     if not is_valid:
         print(f"⚠️ 文件验证失败: {error_msg}")
         return None
-    
-    with open(real_path, "rb") as f:
-        files = {"file": (os.path.basename(real_path), f)}
-        headers = {"X-Auth-Token": api_key}
-        
-        response = requests.post(
-            f"{BASE_URL}{FILE_UPLOAD_ENDPOINT}",
-            files=files,
-            headers=headers,
-            timeout=60
-        )
-        response.raise_for_status()
-        
-        file_id = response.json().get("file_id")
-        return file_id
+
+    try:
+        with open(real_path, "rb") as f:
+            files = {"file": (os.path.basename(real_path), f)}
+            headers = {"X-Auth-Token": api_key}
+
+            try:
+                response = requests.post(
+                    f"{BASE_URL}{FILE_UPLOAD_ENDPOINT}",
+                    files=files,
+                    headers=headers,
+                    timeout=60
+                )
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️ 文件上传失败（网络错误）: {e}")
+                return None
+
+            try:
+                response.raise_for_status()
+            except requests.exceptions.HTTPError:
+                print(f"⚠️ 文件上传返回非200: {response.status_code} - {response.text}")
+                return None
+
+            try:
+                file_id = response.json().get("file_id")
+            except ValueError:
+                print("⚠️ 解析文件上传响应失败（非 JSON）")
+                return None
+
+            return file_id
+    except OSError as e:
+        print(f"⚠️ 无法打开文件: {e}")
+        return None
 
 
-def process_parameters(parameters: dict, api_key: str) -> dict:
+def process_parameters(parameters: dict, api_key: str, file_param_names: list = None):
     """
     处理参数，自动识别文件路径并上传
     
@@ -168,13 +174,19 @@ def process_parameters(parameters: dict, api_key: str) -> dict:
     """
     if not parameters:
         return {}
-    
+
     processed = parameters.copy()
-    
-    for key, value in parameters.items():
-        # 检查是否是文件路径
-        if isinstance(value, str) and os.path.exists(value):
-            # 安全验证
+    file_param_names = file_param_names or []
+
+    for key, value in list(parameters.items()):
+        # 仅对明确在 file_param_names 中的参数或常见文件字段执行上传
+        is_declared_file = (
+            key in file_param_names
+            or key.lower()
+            in {"file", "file_path", "filepath", "path", "protein", "ligand"}
+        )
+
+        if is_declared_file and isinstance(value, str) and os.path.exists(value):
             is_valid, error_msg = validate_file_path(value)
             if is_valid:
                 file_id = upload_file(value, api_key)
@@ -183,7 +195,7 @@ def process_parameters(parameters: dict, api_key: str) -> dict:
                     print(f"文件已上传: {os.path.basename(value)}, file_id: {file_id}")
             else:
                 print(f"⚠️ 跳过不安全文件 {key}: {error_msg}")
-    
+
     return processed
 
 
@@ -212,7 +224,6 @@ def invoke_tool(tool_name: str, parameters: dict = None, file_path: str = None,
     # 获取 API Key
     if not api_key:
         api_key = get_api_key()
-    
     # 🔒 安全验证: tool_name 必须有效
     if not validate_tool_name(tool_name):
         return {
@@ -220,6 +231,13 @@ def invoke_tool(tool_name: str, parameters: dict = None, file_path: str = None,
             "result": f"无效的工具名称: {sanitize_string(tool_name, 100)}",
             "allowed_tools": list(TOOLS_REGISTRY.keys())
         }
+
+    # 获取工具元信息（支持友好名或内部名）
+    tool_info = None
+    try:
+        tool_info = get_tool_info(tool_name)
+    except Exception:
+        tool_info = None
     
     # 清理 provider_name（如果有）
     if provider_name:
@@ -229,13 +247,22 @@ def invoke_tool(tool_name: str, parameters: dict = None, file_path: str = None,
         "X-Auth-Token": api_key,
         "Content-Type": "application/json"
     }
-    
-    # 处理参数（自动检测文件上传）
-    processed_params = process_parameters(parameters.copy(), api_key)
-    
+
+    # 处理参数（自动检测文件上传），优先使用 registry 中声明的 file_params
+    declared_files = []
+    if tool_info:
+        declared_files = tool_info.get("file_params", [])
+
+    processed_params = process_parameters(parameters.copy(), api_key, file_param_names=declared_files)
+
+    # 选择要发送给 API 的 tool_name（如果 registry 提供 internal name 则使用它）
+    api_tool_name = tool_name
+    if tool_info and tool_info.get("tool_name"):
+        api_tool_name = tool_info.get("tool_name")
+
     # 构建 payload
     payload = {
-        "tool_name": tool_name,
+        "tool_name": api_tool_name,
         "parameters": processed_params
     }
     
@@ -244,33 +271,45 @@ def invoke_tool(tool_name: str, parameters: dict = None, file_path: str = None,
         payload["provider_name"] = provider_name
     
     # 条件性文件上传：有 file_path 就传，没就跳过
-    if file_path and os.path.exists(file_path):
-        file_id = upload_file(file_path, api_key)
-        if file_id:
-            payload["parameters"]["file"] = file_id
-            print(f"文件已上传，file_id: {file_id}")
-    else:
-        print("未提供文件或文件不存在，跳过文件上传步骤")
+    if file_path:
+        if os.path.exists(file_path):
+            file_id = upload_file(file_path, api_key)
+            if file_id:
+                payload["parameters"]["file"] = file_id
+                print(f"文件已上传，file_id: {file_id}")
+        else:
+            print("未提供文件或文件不存在，跳过文件上传步骤")
     
     # 提交任务
     try:
-        response = requests.post(
-            f"{BASE_URL}{INVOKE_ENDPOINT}",
-            json=payload,
-            headers=headers,
-            timeout=30
-        )
-        response.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        return {
-            "status": "ERROR",
-            "result": f"HTTP Error: {e.response.status_code} - {e.response.text}",
-            "payload": payload
-        }
-    
-    task_id = response.json().get("task_id")
+        try:
+            response = requests.post(
+                f"{BASE_URL}{INVOKE_ENDPOINT}",
+                json=payload,
+                headers=headers,
+                timeout=30
+            )
+        except requests.exceptions.RequestException as e:
+            return {"status": "ERROR", "result": f"请求失败: {e}", "payload": payload}
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError:
+            # 避免泄露敏感信息
+            text = response.text[:1000]
+            return {"status": "ERROR", "result": f"HTTP Error: {response.status_code} - {text}", "payload": payload}
+
+        try:
+            data = response.json()
+        except ValueError:
+            return {"status": "ERROR", "result": "无法解析响应（非 JSON）", "payload": response.text}
+
+    except Exception as e:
+        return {"status": "ERROR", "result": f"未知错误: {e}", "payload": payload}
+
+    task_id = data.get("task_id")
     if not task_id:
-        return {"status": "FAILURE", "result": "无法获取 task_id", "raw": response.json()}
+        return {"status": "FAILURE", "result": "无法获取 task_id", "raw": data}
     
     # 轮询结果
     return poll_result(task_id, api_key)
@@ -288,29 +327,26 @@ def poll_result(task_id: str, api_key: str) -> dict:
                 headers=headers,
                 timeout=10
             )
+        except requests.exceptions.RequestException as e:
+            return {"status": "ERROR", "result": f"查询结果请求失败: {e}", "task_id": task_id}
+
+        try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            return {
-                "status": "ERROR",
-                "result": f"查询结果失败: {e}"
-            }
-        
-        result = response.json()
+        except requests.exceptions.HTTPError:
+            return {"status": "ERROR", "result": f"查询结果返回错误: {response.status_code}", "task_id": task_id}
+
+        try:
+            result = response.json()
+        except ValueError:
+            return {"status": "ERROR", "result": "解析查询响应失败（非 JSON）", "task_id": task_id}
+
         status = result.get("status")
-        
+
         if status == "SUCCESS":
-            return {
-                "status": "SUCCESS",
-                "result": result.get("result"),
-                "task_id": task_id
-            }
-        elif status == "FAILURE":
-            return {
-                "status": "FAILURE", 
-                "result": result.get("result"),
-                "task_id": task_id
-            }
-        
+            return {"status": "SUCCESS", "result": result.get("result"), "task_id": task_id}
+        if status == "FAILURE":
+            return {"status": "FAILURE", "result": result.get("result"), "task_id": task_id}
+
         time.sleep(POLL_INTERVAL)
     
     return {
@@ -362,7 +398,7 @@ def run_with_tool(tool_name: str, parameters: dict = None, **kwargs) -> dict:
     tool_info = get_tool_info(tool_name)
     
     return execute(
-        tool_name=tool_info.get("default_tool_name", tool_name),
+        tool_name=tool_info.get("name", tool_name),
         provider_name=tool_info.get("provider_name"),
         parameters=parameters,
         **kwargs
@@ -411,7 +447,7 @@ def run_task(user_query: str, parameters: dict = None, **kwargs) -> dict:
     # 安全日志输出
     print(f"🔍 自动匹配工具: {sanitize_string(tool_info['name'], 100)}")
     print(f"   描述: {sanitize_string(tool_info.get('description', ''), 200)}")
-    print(f"   tool_name: {tool_info.get('default_tool_name', 'N/A')}")
+    print(f"   tool_name: {tool_info.get('tool_name', 'N/A')}")
     
     # 2. 构建参数
     final_params = parameters or {}
@@ -419,7 +455,7 @@ def run_task(user_query: str, parameters: dict = None, **kwargs) -> dict:
     
     # 3. 执行调用
     result = execute(
-        tool_name=tool_info.get("default_tool_name"),
+        tool_name=tool_info.get("tool_name"),
         provider_name=tool_info.get("provider_name"),
         parameters=final_params
     )
@@ -431,7 +467,6 @@ def run_task(user_query: str, parameters: dict = None, **kwargs) -> dict:
 
 
 if __name__ == "__main__":
-    import sys
     
     # 测试自动匹配
     print("=== 测试自动工具匹配 ===")
@@ -450,4 +485,4 @@ if __name__ == "__main__":
             print(f"  ✅ 匹配: {tool_info['name']}")
             print(f"     tool_name: {tool_info.get('default_tool_name')}")
         else:
-            print(f"  ❌ 未匹配到工具")
+            print("  ❌ 未匹配到工具")

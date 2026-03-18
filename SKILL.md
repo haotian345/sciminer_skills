@@ -2,16 +2,12 @@
 name: scimin-api
 description: 调用 SciMiner (https://sciminer.tech) 药物设计工具 API。支持根据用户问题自动匹配工具，支持 ADMET 预测、分子描述符计算、专利检索等多种工具。用于调用 SciMiner 的各种计算工具，上传分子文件进行批量处理，查询专利信息获取化合物结构。API Key 通过环境变量 SCIMINER_API_KEY 配置。
 metadata:
-  {
-    "openclaw":
-      {
-        "requires":
-          {
-            "env": ["SCIMINER_API_KEY"],
-            "bins": ["python3"],
-          },
-      },
-  }
+  openclaw:
+    requires:
+      env:
+        - SCIMINER_API_KEY
+      bins:
+        - python3
 ---
 
 # SciMiner API 工具

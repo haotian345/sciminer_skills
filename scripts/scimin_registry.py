@@ -145,7 +145,11 @@ TOOLS_REGISTRY = {
                 "tool_name": "pdb_by_code_post",
                 "description": "下载 PDB 文件",
                 "parameters": {
-                    "pdb_code": {"type": "string", "required": True, "description": "PDB 代码，如 1ABC"}
+                    "pdb_code": {
+                        "type": "string",
+                        "required": True,
+                        "description": "PDB 代码，如 1ABC",
+                    }
                 }
             }
         }
@@ -160,8 +164,16 @@ TOOLS_REGISTRY = {
                 "tool_name": "clinical_trials_post",
                 "description": "查询临床试验",
                 "parameters": {
-                    "drug_name": {"type": "string", "required": False, "description": "药物名称"},
-                    "nct_id": {"type": "string", "required": False, "description": "NCT ID"}
+                    "drug_name": {
+                        "type": "string",
+                        "required": False,
+                        "description": "药物名称",
+                    },
+                    "nct_id": {
+                        "type": "string",
+                        "required": False,
+                        "description": "NCT ID",
+                    },
                 }
             }
         }
@@ -177,8 +189,16 @@ TOOLS_REGISTRY = {
                 "tool_name": "diffdock_post",
                 "description": "分子对接",
                 "parameters": {
-                    "protein": {"type": "file", "required": True, "description": "蛋白质 PDB 文件"},
-                    "ligand": {"type": "file", "required": True, "description": "配体 SDF 文件"}
+                    "protein": {
+                        "type": "file",
+                        "required": True,
+                        "description": "蛋白质 PDB 文件",
+                    },
+                    "ligand": {
+                        "type": "file",
+                        "required": True,
+                        "description": "配体 SDF 文件",
+                    },
                 },
                 "file_params": ["protein", "ligand"]
             }
@@ -195,7 +215,11 @@ TOOLS_REGISTRY = {
                 "tool_name": "smiles_2_image_post",
                 "description": "SMILES 转图像",
                 "parameters": {
-                    "smiles": {"type": "string", "required": True, "description": "SMILES 字符串"}
+                    "smiles": {
+                        "type": "string",
+                        "required": True,
+                        "description": "SMILES 字符串",
+                    }
                 }
             }
         }
@@ -210,7 +234,11 @@ TOOLS_REGISTRY = {
                 "tool_name": "sdf_2_smiles_post",
                 "description": "SDF 转 SMILES",
                 "parameters": {
-                    "file": {"type": "file", "required": True, "description": "SDF 文件"}
+                    "file": {
+                        "type": "file",
+                        "required": True,
+                        "description": "SDF 文件",
+                    }
                 },
                 "file_params": ["file"]
             }
@@ -224,7 +252,7 @@ KEYWORD_TOOL_MAP = {
     # ADMET
     "admet": "ADMET Predictor",
     "吸收": "ADMET Predictor",
-    "分布": "ADMET Predictor", 
+    "分布": "ADMET Predictor",
     "代谢": "ADMET Predictor",
     "排泄": "ADMET Predictor",
     "毒性": "ADMET Predictor",
@@ -238,17 +266,14 @@ KEYWORD_TOOL_MAP = {
     "类药性": "Check Lipinski",
     "pains": "Check PAINS",
     "合成": "SAScore",
-    
     # 数据库
     "专利": "Get Mol From Patent",
     "patent": "Get Mol From Patent",
     "pdb": "PDB By Code",
     "临床试验": "Clinical Trials",
-    
     # 对接
     "对接": "DiffDock",
     "docking": "DiffDock",
-    
     # 格式转换
     "smiles转图像": "SMILES 2 Image",
     "sdf转smiles": "SDF 2 SMILES",
@@ -276,27 +301,51 @@ def find_tool(query: str) -> dict:
 
 
 def get_tool_info(tool_name: str) -> dict:
-    """获取工具详细信息"""
-    if tool_name not in TOOLS_REGISTRY:
-        return None
-    
-    tool = TOOLS_REGISTRY[tool_name]
-    result = {
-        "name": tool_name,
-        "provider_name": tool.get("provider_name"),
-        "description": tool.get("description"),
-        "category": tool.get("category"),
-        "interfaces": tool.get("interfaces", {})
-    }
-    
-    # 添加默认接口信息
-    if result["interfaces"]:
-        first_interface = list(result["interfaces"].values())[0]
-        result["tool_name"] = first_interface.get("tool_name")
-        result["parameters"] = first_interface.get("parameters", {})
-        result["file_params"] = first_interface.get("file_params", [])
-    
-    return result
+    """获取工具详细信息。
+
+    支持两种查询方式：
+    - 友好名称（TOOLS_REGISTRY 的键）
+    - 内部接口名称（interface 中的 "tool_name" 值）
+    返回与原来相似的字典结构，找不到时返回 None。
+    """
+    # 直接按友好名称查找
+    if tool_name in TOOLS_REGISTRY:
+        tool = TOOLS_REGISTRY[tool_name]
+        result = {
+            "name": tool_name,
+            "provider_name": tool.get("provider_name"),
+            "description": tool.get("description"),
+            "category": tool.get("category"),
+            "interfaces": tool.get("interfaces", {})
+        }
+
+        # 添加默认接口信息
+        if result["interfaces"]:
+            first_interface = list(result["interfaces"].values())[0]
+            result["tool_name"] = first_interface.get("tool_name")
+            result["parameters"] = first_interface.get("parameters", {})
+            result["file_params"] = first_interface.get("file_params", [])
+
+        return result
+
+    # 支持按内部接口名称查找（如 smiles_admet_post）
+    for friendly_name, tool in TOOLS_REGISTRY.items():
+        interfaces = tool.get("interfaces", {})
+        for iface in interfaces.values():
+            if iface.get("tool_name") == tool_name:
+                result = {
+                    "name": friendly_name,
+                    "provider_name": tool.get("provider_name"),
+                    "description": tool.get("description"),
+                    "category": tool.get("category"),
+                    "interfaces": tool.get("interfaces", {})
+                }
+                result["tool_name"] = tool_name
+                result["parameters"] = iface.get("parameters", {})
+                result["file_params"] = iface.get("file_params", [])
+                return result
+
+    return None
 
 
 def list_tools(category: str = None) -> list:
