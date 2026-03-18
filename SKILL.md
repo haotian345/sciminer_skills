@@ -1,5 +1,5 @@
 ---
-name: scimin-api
+name: sciminer_skills
 description: 调用 SciMiner (https://sciminer.tech) 药物设计工具 API。支持根据用户问题自动匹配工具，支持 ADMET 预测、分子描述符计算、专利检索等多种工具。用于调用 SciMiner 的各种计算工具，上传分子文件进行批量处理，查询专利信息获取化合物结构。API Key 通过环境变量 SCIMINER_API_KEY 配置。
 metadata:
   openclaw:
@@ -7,7 +7,7 @@ metadata:
       env:
         - SCIMINER_API_KEY
       bins:
-        - python3
+        - python
 ---
 
 # SciMiner API 工具
@@ -44,7 +44,7 @@ source ~/.bashrc
 {
   "skills": {
     "entries": {
-      "scimin-api": {
+      "sciminer_skills": {
         "enabled": true,
         "env": {
           "SCIMINER_API_KEY": "你的APIKey"
@@ -140,24 +140,21 @@ result = run_with_tool(
 |----------|----------|-----------|
 | 预测ADMET | ADMET Predictor | `smiles_admet_post` |
 | 药代动力学 | ADMET Predictor | `smiles_admet_post` |
-| 口服生物利用度 | αOBA | - |
-| pKa值 | Graph-pKa | - |
-| 类药性 | Check Lipinski | - |
-| PAINS | Check PAINS | - |
+| pKa值 | Graph-pKa | `graph_pka_post` |
+| 类药性 | Check Lipinski | `check_lipinski_post` |
+| PAINS | Check PAINS | `check_pains_post` |
 | 专利提取 | Get Mol From Patent | `query_patentid_to_file_*` |
-| 分子描述符 | Molecular Descriptors | - |
-| 合成可及性 | SAScore | - |
-| 蛋白配体相互作用 | PLIP Analysis | - |
+| 分子描述符 | Molecular Descriptors | `molecular_descriptors_post` |
+| 合成可及性 | SAScore | `sascore_post` |
+| 结构警告 | Structural Alert Filters | `structural_alert_filters_post` |
+| 分子对接 | DiffDock | `diffdock_post` |
 
 ## 常用工具列表
 
 完整列表请参考 `scimin_registry.py`：
 
 ```python
-from scimin_registry import list_tools, get_tool_info, list_categories
-
-# 列出所有类别
-print(list_categories())
+from scimin_registry import list_tools, get_tool_info
 
 # 列出所有工具
 print(list_tools())

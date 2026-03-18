@@ -266,17 +266,26 @@ KEYWORD_TOOL_MAP = {
     "类药性": "Check Lipinski",
     "pains": "Check PAINS",
     "合成": "SAScore",
+    "结构警告": "Structural Alert Filters",
+    "毒性亚结构": "Structural Alert Filters",
+    "structural alert": "Structural Alert Filters",
     # 数据库
     "专利": "Get Mol From Patent",
     "patent": "Get Mol From Patent",
     "pdb": "PDB By Code",
+    "蛋白质结构": "PDB By Code",
     "临床试验": "Clinical Trials",
+    "clinical": "Clinical Trials",
     # 对接
     "对接": "DiffDock",
     "docking": "DiffDock",
+    "diffdock": "DiffDock",
     # 格式转换
     "smiles转图像": "SMILES 2 Image",
+    "结构图": "SMILES 2 Image",
+    "图像": "SMILES 2 Image",
     "sdf转smiles": "SDF 2 SMILES",
+    "sdf2smiles": "SDF 2 SMILES",
 }
 
 
@@ -346,6 +355,16 @@ def get_tool_info(tool_name: str) -> dict:
                 return result
 
     return None
+
+
+def list_categories() -> list:
+    """列出所有工具类别"""
+    categories = set()
+    for info in TOOLS_REGISTRY.values():
+        cat = info.get("category")
+        if cat:
+            categories.add(cat)
+    return sorted(categories)
 
 
 def list_tools(category: str = None) -> list:

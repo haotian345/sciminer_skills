@@ -46,11 +46,6 @@ POLL_INTERVAL = 2
 # 安全配置
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 ALLOWED_EXTENSIONS = {".sdf", ".mol", ".mol2", ".smi", ".csv", ".xlsx", ".txt"}
-_ALLOWED_SMILES_STR = (
-    "BCNOPSFIHcnops[]()=#@-+/0123456789%Z"
-    "abcdefghijklmqrstuvwxyzE\\"
-)
-ALLOWED_SMILES_CHARS = set(_ALLOWED_SMILES_STR)
 
 
 def sanitize_string(s: str, max_len: int = 1000) -> str:
@@ -431,13 +426,6 @@ def run_task(user_query: str, parameters: dict = None, **kwargs) -> dict:
     tool_info = find_tool(safe_query)
     
     if not tool_info:
-        # 尝试直接使用 tool_name
-        if parameters:
-            return execute(
-                tool_name=safe_query if isinstance(safe_query, str) else "unknown",
-                parameters=parameters,
-                **kwargs
-            )
         return {
             "status": "ERROR",
             "result": f"无法从问题 '{safe_query[:50]}...' 识别出对应的工具，请明确指定工具名称",
@@ -483,6 +471,6 @@ if __name__ == "__main__":
         tool_info = find_tool(query)
         if tool_info:
             print(f"  ✅ 匹配: {tool_info['name']}")
-            print(f"     tool_name: {tool_info.get('default_tool_name')}")
+            print(f"     tool_name: {tool_info.get('tool_name')}")
         else:
             print("  ❌ 未匹配到工具")
