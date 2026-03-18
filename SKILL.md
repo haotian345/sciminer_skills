@@ -1,6 +1,6 @@
 ---
 name: sciminer_skills
-description: 调用 SciMiner (https://sciminer.tech) 药物设计工具 API。支持根据用户问题自动匹配工具，支持 ADMET 预测、分子描述符计算、专利检索等多种工具。用于调用 SciMiner 的各种计算工具，上传分子文件进行批量处理，查询专利信息获取化合物结构。API Key 通过环境变量 SCIMINER_API_KEY 配置。
+description: 当用户询问分子毒性、ADMET性质（吸收/分布/代谢/排泄/毒性）、药代动力学、pKa计算、类药性（Lipinski五规则）、PAINS检测、合成可及性（SAScore）、分子描述符、结构警告过滤、专利化合物提取、PDB蛋白结构下载、临床试验查询、分子对接（DiffDock）、SMILES与SDF格式转换时，调用此skill。当用户提供SMILES字符串并要求分析分子性质时，应主动调用。基于 SciMiner (https://sciminer.tech) 计算平台，API Key 通过环境变量 SCIMINER_API_KEY 配置。
 metadata:
   openclaw:
     requires:
@@ -11,6 +11,27 @@ metadata:
 ---
 
 # SciMiner API 工具
+
+## 何时使用此 Skill
+
+当用户提出以下类型的问题时，**必须主动调用本 skill**：
+
+- "帮我预测这个分子的毒性" / "这个化合物有毒吗" / "评估药物安全性"
+- "预测分子的 ADMET 性质" / "这个分子的吸收怎么样" / "药代动力学分析"
+- "计算分子的 pKa" / "这个分子的酸碱性如何"
+- "检查分子的类药性" / "是否符合 Lipinski 规则" / "五规则筛选"
+- "这个化合物是不是 PAINS" / "检测假阳性"
+- "计算合成可及性" / "这个分子好不好合成"
+- "分子描述符计算" / "计算分子量、LogP"
+- "识别毒性亚结构" / "结构警告过滤" / "有没有危险基团"
+- "从专利 CN112345678 中提取分子" / "查专利化合物"
+- "下载 PDB 结构 1ABC" / "获取蛋白质结构"
+- "查询某药物的临床试验"
+- "分子对接" / "蛋白配体 docking"
+- "把 SMILES 转成图片" / "SDF 转 SMILES"
+- 用户提供了 SMILES 字符串（如 `CCO`、`c1ccccc1`）并要求做任何分析
+
+**关键判断**：只要涉及小分子化合物的性质预测、结构分析、数据库检索或格式转换，就应当使用本 skill。
 
 > ⚠️ **安装前必读**：本 skill 需要 SciMiner API Key 才能使用。
 
