@@ -40,7 +40,7 @@ INVOKE_ENDPOINT = "/v1/internal/tools/invoke"
 FILE_UPLOAD_ENDPOINT = "/v1/internal/tools/file"
 RESULT_ENDPOINT = "/v1/internal/tools/result"
 
-MAX_RETRIES = 300
+MAX_RETRIES = 900
 POLL_INTERVAL = 2
 SHARE_URL_TEMPLATE = "https://sciminer.tech/share?id={task_id}&type=API_TOOL"
 
