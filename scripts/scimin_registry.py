@@ -259,16 +259,41 @@ TOOLS_REGISTRY = {
                         "type": "string",
                         "required": True,
                         "description": "化合物库名称",
+                        "enum": [
+                            "Covalent Library",
+                            "Drug-like Library",
+                            "Fragment Library",
+                            "Macrocycle Library",
+                            "Molecular Glue Library",
+                            "Natural Product Library",
+                            "Peptidomimetic Library",
+                            "PROTAC Library"
+                        ]
                     },
                     "filter_rules": {
                         "type": "array",
                         "required": False,
-                        "description": "筛选规则列表，如 ['OPTION VALUE1', 'OPTION VALUE2']",
+                        "description": "筛选规则列表，可多选",
+                        "enum": [
+                            "PAINS",
+                            "Ro5",
+                            "Ro3"
+                        ]
                     },
                     "PLIP_type": {
                         "type": "string",
                         "required": False,
-                        "description": "PLIP 分析类型",
+                        "description": "PLIP 分析类型，单选",
+                        "enum": [
+                            "None",
+                            "Hydrogen Bonds",
+                            "Water Bridges",
+                            "Salt Bridges",
+                            "pi-Stacking",
+                            "pi-Cation Interactions",
+                            "Halogen Bonds",
+                            "Metal Complexes"
+                        ]
                     },
                     "custom_file": {
                         "type": "file",
