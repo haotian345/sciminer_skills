@@ -244,6 +244,67 @@ TOOLS_REGISTRY = {
             }
         }
     },
+    
+    # ========== 虚拟筛选 ==========
+    "Virtual Screen": {
+        "provider_name": "Transformer-EnterpriseProprietary Virtual Screen",
+        "description": "基于 Transformer 模型的企业级虚拟筛选工具，支持商业化合物库筛选、蛋白-配体相互作用分析（PLIP）、tCPI 预测等",
+        "category": "虚拟筛选",
+        "interfaces": {
+            "默认接口": {
+                "tool_name": "virtual-screeningcommercial-librarycategory_post",
+                "description": "对商业化合物库进行虚拟筛选",
+                "parameters": {
+                    "library": {
+                        "type": "string",
+                        "required": True,
+                        "description": "化合物库名称",
+                    },
+                    "filter_rules": {
+                        "type": "array",
+                        "required": False,
+                        "description": "筛选规则列表，如 ['OPTION VALUE1', 'OPTION VALUE2']",
+                    },
+                    "PLIP_type": {
+                        "type": "string",
+                        "required": False,
+                        "description": "PLIP 分析类型",
+                    },
+                    "custom_file": {
+                        "type": "file",
+                        "required": False,
+                        "description": "自定义化合物文件",
+                    },
+                    "protein_sequence": {
+                        "type": "string",
+                        "required": False,
+                        "description": "蛋白质序列",
+                    },
+                    "tCPI_topK": {
+                        "type": "string",
+                        "required": False,
+                        "description": "tCPI 预测返回的 Top-K 数量",
+                    },
+                    "tCPI_num_clusters": {
+                        "type": "string",
+                        "required": False,
+                        "description": "tCPI 聚类数量",
+                    },
+                    "Boltz2_samples": {
+                        "type": "integer",
+                        "required": False,
+                        "description": "Boltz2 采样数量，默认 2",
+                    },
+                    "PLIP_residue": {
+                        "type": "string",
+                        "required": False,
+                        "description": "PLIP 分析的残基信息",
+                    },
+                },
+                "file_params": ["custom_file"]
+            }
+        }
+    },
 }
 
 
@@ -286,6 +347,13 @@ KEYWORD_TOOL_MAP = {
     "图像": "SMILES 2 Image",
     "sdf转smiles": "SDF 2 SMILES",
     "sdf2smiles": "SDF 2 SMILES",
+    # 虚拟筛选
+    "虚拟筛选": "Virtual Screen",
+    "virtual screen": "Virtual Screen",
+    "化合物库筛选": "Virtual Screen",
+    "商业库筛选": "Virtual Screen",
+    "plip": "Virtual Screen",
+    "tcpi": "Virtual Screen",
 }
 
 
