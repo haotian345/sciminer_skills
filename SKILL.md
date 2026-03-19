@@ -1,6 +1,6 @@
 ---
 name: sciminer_skills
-description: 当用户询问分子毒性、ADMET性质（吸收/分布/代谢/排泄/毒性）、药代动力学、pKa计算、类药性（Lipinski五规则）、PAINS检测、合成可及性（SAScore）、分子描述符、结构警告过滤、专利化合物提取、PDB蛋白结构下载、临床试验查询、分子对接（DiffDock）、SMILES与SDF格式转换时，调用此skill。当用户提供SMILES字符串并要求分析分子性质时，应主动调用。基于 SciMiner (https://sciminer.tech) 计算平台，API Key 通过环境变量 SCIMINER_API_KEY 配置。
+description: 当用户询问分子毒性、ADMET性质（吸收/分布/代谢/排泄/毒性）、药代动力学、pKa计算、类药性（Lipinski五规则）、PAINS检测、合成可及性（SAScore）、分子描述符、结构警告过滤、专利化合物提取、PDB蛋白结构下载、临床试验查询、分子对接（DiffDock）、虚拟筛选（Virtual Screen、化合物库筛选、PLIP、tCPI）、SMILES与SDF格式转换时，调用此skill。当用户提供SMILES字符串并要求分析分子性质时，应主动调用。基于 SciMiner (https://sciminer.tech) 计算平台，API Key 通过环境变量 SCIMINER_API_KEY 配置。
 metadata:
   openclaw:
     requires:
@@ -28,6 +28,7 @@ metadata:
 - "下载 PDB 结构 1ABC" / "获取蛋白质结构"
 - "查询某药物的临床试验"
 - "分子对接" / "蛋白配体 docking"
+- "虚拟筛选" / "化合物库筛选" / "virtual screen" / "PLIP 分析" / "tCPI 预测"
 - "把 SMILES 转成图片" / "SDF 转 SMILES"
 - 用户提供了 SMILES 字符串（如 `CCO`、`c1ccccc1`）并要求做任何分析
 
@@ -172,6 +173,7 @@ result = run_with_tool(
 | 合成可及性 | SAScore | `sascore_post` |
 | 结构警告 | Structural Alert Filters | `structural_alert_filters_post` |
 | 分子对接 | DiffDock | `diffdock_post` |
+| 虚拟筛选 | Virtual Screen | `virtual-screeningcommercial-librarycategory_post` |
 
 ## 常用工具列表
 
