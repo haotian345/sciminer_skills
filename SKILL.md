@@ -149,9 +149,12 @@ result = run_with_tool(
     "status": "SUCCESS",      # SUCCESS | FAILURE | PENDING | ERROR
     "result": {...},          # 任务结果
     "task_id": "xxx",         # 任务ID
+    "share_url": "https://sciminer.tech/share?id=xxx&type=API_TOOL",  # 分享链接
     "matched_tool": "xxx"     # 自动匹配时返回
 }
 ```
+
+> **重要**：在向用户总结结果时，务必在最后附上 `share_url` 链接，方便用户查看完整的在线结果。
 
 ## 自动匹配工具
 

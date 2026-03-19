@@ -42,6 +42,14 @@ RESULT_ENDPOINT = "/v1/internal/tools/result"
 
 MAX_RETRIES = 300
 POLL_INTERVAL = 2
+SHARE_URL_TEMPLATE = "https://sciminer.tech/share?id={task_id}&type=API_TOOL"
+
+
+def build_share_url(task_id: str) -> str:
+    """根据 task_id 构建分享链接"""
+    if not task_id:
+        return ""
+    return SHARE_URL_TEMPLATE.format(task_id=task_id)
 
 # 安全配置
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
@@ -323,31 +331,32 @@ def poll_result(task_id: str, api_key: str) -> dict:
                 timeout=10
             )
         except requests.exceptions.RequestException as e:
-            return {"status": "ERROR", "result": f"查询结果请求失败: {e}", "task_id": task_id}
+            return {"status": "ERROR", "result": f"查询结果请求失败: {e}", "task_id": task_id, "share_url": build_share_url(task_id)}
 
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError:
-            return {"status": "ERROR", "result": f"查询结果返回错误: {response.status_code}", "task_id": task_id}
+            return {"status": "ERROR", "result": f"查询结果返回错误: {response.status_code}", "task_id": task_id, "share_url": build_share_url(task_id)}
 
         try:
             result = response.json()
         except ValueError:
-            return {"status": "ERROR", "result": "解析查询响应失败（非 JSON）", "task_id": task_id}
+            return {"status": "ERROR", "result": "解析查询响应失败（非 JSON）", "task_id": task_id, "share_url": build_share_url(task_id)}
 
         status = result.get("status")
 
         if status == "SUCCESS":
-            return {"status": "SUCCESS", "result": result.get("result"), "task_id": task_id}
+            return {"status": "SUCCESS", "result": result.get("result"), "task_id": task_id, "share_url": build_share_url(task_id)}
         if status == "FAILURE":
-            return {"status": "FAILURE", "result": result.get("result"), "task_id": task_id}
+            return {"status": "FAILURE", "result": result.get("result"), "task_id": task_id, "share_url": build_share_url(task_id)}
 
         time.sleep(POLL_INTERVAL)
     
     return {
         "status": "PENDING",
         "result": "超过最大重试次数",
-        "task_id": task_id
+        "task_id": task_id,
+        "share_url": build_share_url(task_id)
     }
 
 
